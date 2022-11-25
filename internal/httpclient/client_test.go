@@ -466,3 +466,31 @@ func TestHTTPClientReceiveMultipart(t *testing.T) {
 		assert.Equal(t, "201", resMsg.Get(1).MetaGetStr("http_status_code"))
 	}
 }
+
+
+func TestHTTPClientSendMultipleMetaFilter(t *testing.T) {ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("foobar", "baz1")
+	w.Header().Add("foobar", "baz2")
+	w.WriteHeader(http.StatusCreated)
+}))
+	defer ts.Close()
+
+	conf := oldconfig.NewOldConfig()
+	conf.URL = ts.URL
+
+	conf.ExtractMetadata.IncludePrefixes = []string{"foo"}
+	h, err := NewClientFromOldConfig(conf, mock.NewManager())
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	resMsg, err := h.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	assert.Equal(t, "baz1", resMsg.Get(0).MetaGetStr("foobar"))
+	assert.Equal(t, "baz1", resMsg.Get(0).MetaGetStr("__foobar__0"))
+	assert.Equal(t, "baz2", resMsg.Get(0).MetaGetStr("__foobar__1"))
+}
+

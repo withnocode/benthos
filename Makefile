@@ -76,6 +76,10 @@ docker:
 	@docker build -f ./resources/docker/Dockerfile . -t $(DOCKER_IMAGE):$(VER_CUT)
 	@docker tag $(DOCKER_IMAGE):$(VER_CUT) $(DOCKER_IMAGE):latest
 
+docker-platform:
+	@docker build --platform ${DOCKER_PLATFORM} -f ./resources/docker/Dockerfile . -t $(DOCKER_IMAGE):$(VER_CUT)
+	@docker tag $(DOCKER_IMAGE):$(VER_CUT) $(DOCKER_IMAGE):latest
+
 docker-cgo:
 	@docker build -f ./resources/docker/Dockerfile.cgo . -t $(DOCKER_IMAGE):$(VER_CUT)-cgo
 	@docker tag $(DOCKER_IMAGE):$(VER_CUT)-cgo $(DOCKER_IMAGE):latest-cgo

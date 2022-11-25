@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -231,6 +232,9 @@ func (h *Client) ResponseToBatch(res *http.Response) (resMsg message.Batch, err 
 				normalisedHeader := strings.ToLower(k)
 				if len(values) > 0 && h.metaExtractFilter.Match(normalisedHeader) {
 					p.MetaSetMut(normalisedHeader, values[0])
+					for i, v := range values {
+						p.MetaSetMut("__" + normalisedHeader + "__" + strconv.Itoa(i), v)
+					}
 				}
 			}
 		}
@@ -456,3 +460,4 @@ func (h *Client) Close(ctx context.Context) error {
 	h.clientCancel()
 	return nil
 }
+
