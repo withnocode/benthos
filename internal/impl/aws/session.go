@@ -37,6 +37,8 @@ func GetSession(parsedConf *service.ParsedConfig, opts ...func(*aws.Config)) (*s
 		opt(awsConf)
 	}
 
+	awsConf.CredentialsChainVerboseErrors = aws.Bool(true)
+
 	sess, err := session.NewSession(awsConf)
 	if err != nil {
 		return nil, err
@@ -90,6 +92,8 @@ func GetSessionFromConf(c bsession.Config, opts ...func(*aws.Config)) (*session.
 		opt(awsConf)
 	}
 
+	awsConf.CredentialsChainVerboseErrors = aws.Bool(true)
+
 	sess, err := session.NewSession(awsConf)
 	if err != nil {
 		return nil, err
@@ -115,3 +119,4 @@ func GetSessionFromConf(c bsession.Config, opts ...func(*aws.Config)) (*session.
 
 	return sess, nil
 }
+
