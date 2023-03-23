@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"testing"
 
@@ -374,6 +375,58 @@ func TestRandomIntDynamic(t *testing.T) {
 	assert.Equal(t, tallies, thirdTallies)
 }
 
+func TestRandomIntMilliDynamicParallel(t *testing.T) {
+	tsFn, err := InitFunctionHelper("timestamp_unix_milli")
+	require.NoError(t, err)
+
+	e, err := InitFunctionHelper("random_int", tsFn)
+	require.NoError(t, err)
+
+	startChan := make(chan struct{})
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-startChan
+			for j := 0; j < 100; j++ {
+				res, err := e.Exec(FunctionContext{})
+				require.NoError(t, err)
+				require.IsType(t, int64(0), res)
+			}
+		}()
+	}
+
+	close(startChan)
+	wg.Wait()
+}
+
+func TestRandomIntMicroDynamicParallel(t *testing.T) {
+	tsFn, err := InitFunctionHelper("timestamp_unix_micro")
+	require.NoError(t, err)
+
+	e, err := InitFunctionHelper("random_int", tsFn)
+	require.NoError(t, err)
+
+	startChan := make(chan struct{})
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-startChan
+			for j := 0; j < 100; j++ {
+				res, err := e.Exec(FunctionContext{})
+				require.NoError(t, err)
+				require.IsType(t, int64(0), res)
+			}
+		}()
+	}
+
+	close(startChan)
+	wg.Wait()
+}
+
 func TestRandomIntDynamicParallel(t *testing.T) {
 	tsFn, err := InitFunctionHelper("timestamp_unix_nano")
 	require.NoError(t, err)
@@ -398,4 +451,43 @@ func TestRandomIntDynamicParallel(t *testing.T) {
 
 	close(startChan)
 	wg.Wait()
+}
+
+func TestRandomIntWithinRange(t *testing.T) {
+	tsFn, err := InitFunctionHelper("timestamp_unix_nano")
+	require.NoError(t, err)
+	var min, max int64 = 10, 20
+	e, err := InitFunctionHelper("random_int", tsFn, min, max)
+	require.Nil(t, err)
+
+	for i := 0; i < 1000; i++ {
+		res, err := e.Exec(FunctionContext{})
+		require.NoError(t, err)
+		require.IsType(t, int64(0), res)
+		assert.GreaterOrEqual(t, res.(int64), min)
+		assert.LessOrEqual(t, res.(int64), max)
+	}
+
+	// Create a new random_int function with one single possible value
+	e, err = InitFunctionHelper("random_int", tsFn, 10, 10)
+	require.NoError(t, err)
+
+	for i := 0; i < 1000; i++ {
+		res, err := e.Exec(FunctionContext{})
+		require.NoError(t, err)
+		require.IsType(t, int64(0), res)
+		assert.Equal(t, res.(int64), int64(10))
+	}
+
+	// Create a new random_int function with an invalid range
+	_, err = InitFunctionHelper("random_int", tsFn, 11, 10)
+	require.Error(t, err)
+
+	// Create a new random_int function with a negative nin value
+	_, err = InitFunctionHelper("random_int", tsFn, -1, 10)
+	require.Error(t, err)
+
+	// Create a new random_int function with a max that will overflow
+	_, err = InitFunctionHelper("random_int", tsFn, 0, math.MaxInt64)
+	require.Error(t, err)
 }

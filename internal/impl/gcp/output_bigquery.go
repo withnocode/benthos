@@ -115,7 +115,7 @@ func (g gcpBQClientURL) NewClient(ctx context.Context, projectID string) (*bigqu
 
 func gcpBigQueryConfig() *service.ConfigSpec {
 	return service.NewConfigSpec().
-		// Stable(). TODO
+		Beta().
 		Categories("GCP", "Services").
 		Version("3.55.0").
 		Summary(`Sends messages as new rows to a Google Cloud BigQuery table.`).
@@ -357,7 +357,7 @@ func (g *gcpBigQueryOutput) WriteBatch(ctx context.Context, batch service.Messag
 	var data bytes.Buffer
 
 	if g.csvHeaderBytes != nil {
-		data.Write(g.csvHeaderBytes)
+		_, _ = data.Write(g.csvHeaderBytes)
 	}
 
 	for _, msg := range batch {
@@ -366,9 +366,9 @@ func (g *gcpBigQueryOutput) WriteBatch(ctx context.Context, batch service.Messag
 			return err
 		}
 		if data.Len() > 0 {
-			data.Write(g.newLineBytes)
+			_, _ = data.Write(g.newLineBytes)
 		}
-		data.Write(msgBytes)
+		_, _ = data.Write(msgBytes)
 	}
 
 	dataBytes := data.Bytes()

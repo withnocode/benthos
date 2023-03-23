@@ -16,7 +16,7 @@ func memCacheConfig() *service.ConfigSpec {
 		Summary(`Stores key/value pairs in a map held in memory. This cache is therefore reset every time the service restarts. Each item in the cache has a TTL set from the moment it was last edited, after which it will be removed during the next compaction.`).
 		Description(`The compaction interval determines how often the cache is cleared of expired items, and this process is only triggered on writes to the cache. Access to the cache is blocked during this process.
 
-Item expiry can be disabled entirely by either setting the ` + "`compaction_interval`" + ` to an empty string.
+Item expiry can be disabled entirely by setting the ` + "`compaction_interval`" + ` to an empty string.
 
 The field ` + "`init_values`" + ` can be used to prepopulate the memory cache with any number of key/value pairs which are exempt from TTLs:
 
@@ -177,9 +177,8 @@ func (m *memoryCache) getShard(key string) *shard {
 	if len(m.shards) == 1 {
 		return m.shards[0]
 	}
-	h := xxhash.New64()
-	_, _ = h.WriteString(key)
-	return m.shards[h.Sum64()%uint64(len(m.shards))]
+
+	return m.shards[xxhash.ChecksumString64(key)%uint64(len(m.shards))]
 }
 
 func (m *memoryCache) Get(_ context.Context, key string) ([]byte, error) {

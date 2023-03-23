@@ -87,6 +87,15 @@ If the result of a target query fails (due to incorrect types, failed parsing, e
 root.doc.id = this.thing.id.string().catch(uuid_v4())
 ```
 
+The fallback argument can be a mapping, allowing you to capture the error string and yield structured data back.
+
+```coffee
+root.url = this.url.parse_url().catch(err -> {"error":err,"input":this.url})
+
+# In:  {"url":"invalid %&# url"}
+# Out: {"url":{"error":"field `this.url`: parse \"invalid %&\": invalid URL escape \"%&\"","input":"invalid %&# url"}}
+```
+
 When the input document is not structured attempting to reference structured fields with `this` will result in an error. Therefore, a convenient way to delete non-structured data is with a catch.
 
 ```coffee
@@ -184,6 +193,56 @@ root.title = this.title.capitalize()
 # Out: {"title":"The Foo Bar"}
 ```
 
+### `compare_argon2`
+
+Checks whether a string matches a hashed secret using Argon2.
+
+#### Parameters
+
+**`hashed_secret`** &lt;string&gt; The hashed secret to compare with the input. This must be a fully-qualified string which encodes the Argon2 options used to generate the hash.  
+
+#### Examples
+
+
+```coffee
+root.match = this.secret.compare_argon2("$argon2id$v=19$m=4096,t=3,p=1$c2FsdHktbWNzYWx0ZmFjZQ$RMUMwgtS32/mbszd+ke4o4Ej1jFpYiUqY6MHWa69X7Y")
+
+# In:  {"secret":"there-are-many-blobs-in-the-sea"}
+# Out: {"match":true}
+```
+
+```coffee
+root.match = this.secret.compare_argon2("$argon2id$v=19$m=4096,t=3,p=1$c2FsdHktbWNzYWx0ZmFjZQ$RMUMwgtS32/mbszd+ke4o4Ej1jFpYiUqY6MHWa69X7Y")
+
+# In:  {"secret":"will-i-ever-find-love"}
+# Out: {"match":false}
+```
+
+### `compare_bcrypt`
+
+Checks whether a string matches a hashed secret using bcrypt.
+
+#### Parameters
+
+**`hashed_secret`** &lt;string&gt; The hashed secret value to compare with the input.  
+
+#### Examples
+
+
+```coffee
+root.match = this.secret.compare_bcrypt("$2y$10$Dtnt5NNzVtMCOZONT705tOcS8It6krJX8bEjnDJnwxiFKsz1C.3Ay")
+
+# In:  {"secret":"there-are-many-blobs-in-the-sea"}
+# Out: {"match":true}
+```
+
+```coffee
+root.match = this.secret.compare_bcrypt("$2y$10$Dtnt5NNzVtMCOZONT705tOcS8It6krJX8bEjnDJnwxiFKsz1C.3Ay")
+
+# In:  {"secret":"will-i-ever-find-love"}
+# Out: {"match":false}
+```
+
 ### `contains`
 
 Checks whether a string contains a substring and returns a boolean result.
@@ -266,7 +325,7 @@ root.path_sep = this.path.filepath_split()
 
 ### `format`
 
-Use a value string as a format specifier in order to produce a new string, using any number of provided arguments.
+Use a value string as a format specifier in order to produce a new string, using any number of provided arguments. Please refer to the Go [`fmt` package documentation](https://pkg.go.dev/fmt) for the list of valid format verbs.
 
 #### Examples
 
@@ -367,6 +426,60 @@ root.foo = this.foo.lowercase()
 
 # In:  {"foo":"HELLO WORLD"}
 # Out: {"foo":"hello world"}
+```
+
+### `parse_jwt_hs256`
+
+Parses a claims object from a JWT string encoded with HS256. This method does not validate JWT claims.
+
+#### Parameters
+
+**`signing_secret`** &lt;string&gt; The HMAC secret that was used for signing the token.  
+
+#### Examples
+
+
+```coffee
+root.claims = this.signed.parse_jwt_hs256("dont-tell-anyone")
+
+# In:  {"signed":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.hUl-nngPMY_3h9vveWJUPsCcO5PeL6k9hWLnMYeFbFQ"}
+# Out: {"claims":{"sub":"user123"}}
+```
+
+### `parse_jwt_hs384`
+
+Parses a claims object from a JWT string encoded with HS384. This method does not validate JWT claims.
+
+#### Parameters
+
+**`signing_secret`** &lt;string&gt; The HMAC secret that was used for signing the token.  
+
+#### Examples
+
+
+```coffee
+root.claims = this.signed.parse_jwt_hs384("dont-tell-anyone")
+
+# In:  {"signed":"eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.zGYLr83aToon1efUNq-hw7XgT20lPvZb8sYei8x6S6mpHwb433SJdXJXx0Oio8AZ"}
+# Out: {"claims":{"sub":"user123"}}
+```
+
+### `parse_jwt_hs512`
+
+Parses a claims object from a JWT string encoded with HS512. This method does not validate JWT claims.
+
+#### Parameters
+
+**`signing_secret`** &lt;string&gt; The HMAC secret that was used for signing the token.  
+
+#### Examples
+
+
+```coffee
+root.claims = this.signed.parse_jwt_hs512("dont-tell-anyone")
+
+# In:  {"signed":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.zBNR9o_6EDwXXKkpKLNJhG26j8Dc-mV-YahBwmEdCrmiWt5les8I9rgmNlWIowpq6Yxs4kLNAdFhqoRz3NXT3w"}
+# Out: {"claims":{"sub":"user123"}}
 ```
 
 ### `quote`
@@ -478,8 +591,8 @@ root.the_rest = this.value.slice(0, -4)
 
 ### `slug`
 
-:::caution EXPERIMENTAL
-This method is experimental and therefore breaking changes could be made to it outside of major version releases.
+:::caution BETA
+This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
 :::
 Creates a "slug" from a given string. Wraps the github.com/gosimple/slug package. See its [docs](https://pkg.go.dev/github.com/gosimple/slug) for more information.
 
@@ -573,6 +686,44 @@ root.description = this.description.trim()
 
 # In:  {"description":"  something happened and its amazing! ","title":"!!!watch out!?"}
 # Out: {"description":"something happened and its amazing!","title":"watch out"}
+```
+
+### `trim_prefix`
+
+Remove the provided leading prefix substring from a string. If the string does not have the prefix substring, it is returned unchanged.
+
+#### Parameters
+
+**`prefix`** &lt;string&gt; The leading prefix substring to trim from the string.  
+
+#### Examples
+
+
+```coffee
+root.name = this.name.trim_prefix("foobar_")
+root.description = this.description.trim_prefix("foobar_")
+
+# In:  {"description":"unchanged","name":"foobar_blobton"}
+# Out: {"description":"unchanged","name":"blobton"}
+```
+
+### `trim_suffix`
+
+Remove the provided trailing suffix substring from a string. If the string does not have the suffix substring, it is returned unchanged.
+
+#### Parameters
+
+**`suffix`** &lt;string&gt; The trailing suffix substring to trim from the string.  
+
+#### Examples
+
+
+```coffee
+root.name = this.name.trim_suffix("_foobar")
+root.description = this.description.trim_suffix("_foobar")
+
+# In:  {"description":"unchanged","name":"blobton_foobar"}
+# Out: {"description":"unchanged","name":"blobton"}
 ```
 
 ### `unescape_html`
@@ -780,7 +931,7 @@ root.new_value = this.value.abs()
 
 ### `ceil`
 
-Returns the least integer value greater than or equal to a number.
+Returns the least integer value greater than or equal to a number. If the resulting value fits within a 64-bit integer then that is returned, otherwise a new floating point number is returned.
 
 #### Examples
 
@@ -797,7 +948,7 @@ root.new_value = this.value.ceil()
 
 ### `floor`
 
-Returns the greatest integer value less than or equal to the target number.
+Returns the greatest integer value less than or equal to the target number. If the resulting value fits within a 64-bit integer then that is returned, otherwise a new floating point number is returned.
 
 #### Examples
 
@@ -807,6 +958,66 @@ root.new_value = this.value.floor()
 
 # In:  {"value":5.7}
 # Out: {"new_value":5}
+```
+
+### `int32`
+
+
+Converts a numerical type into a 32-bit signed integer, this is for advanced use cases where a specific data type is needed for a given component (such as the ClickHouse SQL driver).
+
+If the value is a string then an attempt will be made to parse it as a 32-bit integer. If the target value exceeds the capacity of an integer or contains decimal values then this method will throw an error. In order to convert a floating point number containing decimals first use [`.round()`](#round) on the value first. Please refer to the [`strconv.ParseInt` documentation](https://pkg.go.dev/strconv#ParseInt) for details regarding the supported formats.
+
+#### Examples
+
+
+```coffee
+
+root.a = this.a.int32()
+root.b = this.b.round().int32()
+root.c = this.c.int32()
+
+
+# In:  {"a":12,"b":12.34,"c":"12"}
+# Out: {"a":12,"b":12,"c":12}
+```
+
+```coffee
+
+root = this.int32()
+
+
+# In:  "0xB70B"
+# Out: 46859
+```
+
+### `int64`
+
+
+Converts a numerical type into a 64-bit signed integer, this is for advanced use cases where a specific data type is needed for a given component (such as the ClickHouse SQL driver).
+
+If the value is a string then an attempt will be made to parse it as a 64-bit integer. If the target value exceeds the capacity of an integer or contains decimal values then this method will throw an error. In order to convert a floating point number containing decimals first use [`.round()`](#round) on the value first. Please refer to the [`strconv.ParseInt` documentation](https://pkg.go.dev/strconv#ParseInt) for details regarding the supported formats.
+
+#### Examples
+
+
+```coffee
+
+root.a = this.a.int64()
+root.b = this.b.round().int64()
+root.c = this.c.int64()
+
+
+# In:  {"a":12,"b":12.34,"c":"12"}
+# Out: {"a":12,"b":12,"c":12}
+```
+
+```coffee
+
+root = this.int64()
+
+
+# In:  "0xDEADBEEF"
+# Out: 3735928559
 ```
 
 ### `log`
@@ -893,7 +1104,7 @@ root.new_value = [10,this.value].min()
 
 ### `round`
 
-Rounds numbers to the nearest integer, rounding half away from zero.
+Rounds numbers to the nearest integer, rounding half away from zero. If the resulting value fits within a 64-bit integer then that is returned, otherwise a new floating point number is returned.
 
 #### Examples
 
@@ -906,6 +1117,68 @@ root.new_value = this.value.round()
 
 # In:  {"value":5.9}
 # Out: {"new_value":6}
+```
+
+### `uint32`
+
+
+Converts a numerical type into a 32-bit unsigned integer, this is for advanced use cases where a specific data type is needed for a given component (such as the ClickHouse SQL driver).
+
+If the value is a string then an attempt will be made to parse it as a 32-bit unsigned integer. If the target value exceeds the capacity of an integer or contains decimal values then this method will throw an error. In order to convert a floating point number containing decimals first use [`.round()`](#round) on the value first. Please refer to the [`strconv.ParseInt` documentation](https://pkg.go.dev/strconv#ParseInt) for details regarding the supported formats.
+
+#### Examples
+
+
+```coffee
+
+root.a = this.a.uint32()
+root.b = this.b.round().uint32()
+root.c = this.c.uint32()
+root.d = this.d.uint32().catch(0)
+
+
+# In:  {"a":12,"b":12.34,"c":"12","d":-12}
+# Out: {"a":12,"b":12,"c":12,"d":0}
+```
+
+```coffee
+
+root = this.uint32()
+
+
+# In:  "0xB70B"
+# Out: 46859
+```
+
+### `uint64`
+
+
+Converts a numerical type into a 64-bit unsigned integer, this is for advanced use cases where a specific data type is needed for a given component (such as the ClickHouse SQL driver).
+
+If the value is a string then an attempt will be made to parse it as a 64-bit unsigned integer. If the target value exceeds the capacity of an integer or contains decimal values then this method will throw an error. In order to convert a floating point number containing decimals first use [`.round()`](#round) on the value first. Please refer to the [`strconv.ParseInt` documentation](https://pkg.go.dev/strconv#ParseInt) for details regarding the supported formats.
+
+#### Examples
+
+
+```coffee
+
+root.a = this.a.uint64()
+root.b = this.b.round().uint64()
+root.c = this.c.uint64()
+root.d = this.d.uint64().catch(0)
+
+
+# In:  {"a":12,"b":12.34,"c":"12","d":-12}
+# Out: {"a":12,"b":12,"c":12,"d":0}
+```
+
+```coffee
+
+root = this.uint64()
+
+
+# In:  "0xDEADBEEF"
+# Out: 3735928559
 ```
 
 ## Timestamp Manipulation
@@ -1184,6 +1457,40 @@ root.created_at_unix = this.created_at.ts_unix()
 
 # In:  {"created_at":"2009-11-10T23:00:00Z"}
 # Out: {"created_at_unix":1257894000}
+```
+
+### `ts_unix_micro`
+
+:::caution BETA
+This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
+:::
+Attempts to format a timestamp value as a unix timestamp with microsecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
+
+#### Examples
+
+
+```coffee
+root.created_at_unix = this.created_at.ts_unix_micro()
+
+# In:  {"created_at":"2009-11-10T23:00:00Z"}
+# Out: {"created_at_unix":1257894000000000}
+```
+
+### `ts_unix_milli`
+
+:::caution BETA
+This method is mostly stable but breaking changes could still be made outside of major version releases if a fundamental problem with it is found.
+:::
+Attempts to format a timestamp value as a unix timestamp with millisecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
+
+#### Examples
+
+
+```coffee
+root.created_at_unix = this.created_at.ts_unix_milli()
+
+# In:  {"created_at":"2009-11-10T23:00:00Z"}
+# Out: {"created_at_unix":1257894000000}
 ```
 
 ### `ts_unix_nano`
@@ -1470,6 +1777,20 @@ root.result = this.collapse(include_empty: true)
 
 # In:  {"foo":[{"bar":"1"},{"bar":{}},{"bar":"2"},{"bar":[]}]}
 # Out: {"result":{"foo.0.bar":"1","foo.1.bar":{},"foo.2.bar":"2","foo.3.bar":[]}}
+```
+
+### `concat`
+
+Concatenates an array value with one or more argument arrays.
+
+#### Examples
+
+
+```coffee
+root.foo = this.foo.concat(this.bar, this.baz)
+
+# In:  {"foo":["a","b"],"bar":["c"],"baz":["d","e","f"]}
+# Out: {"foo":["a","b","c","d","e","f"]}
 ```
 
 ### `contains`
@@ -1832,7 +2153,7 @@ root = this.json_schema("""{
 In order to load a schema from a file use the `file` function.
 
 ```coffee
-root = this.json_schema(file(var("BENTHOS_TEST_BLOBLANG_SCHEMA_FILE")))
+root = this.json_schema(file(env("BENTHOS_TEST_BLOBLANG_SCHEMA_FILE")))
 ```
 
 ### `key_values`
@@ -1958,6 +2279,60 @@ root = this.foo.merge(this.bar)
 
 # In:  {"foo":{"first_name":"fooer","likes":"bars"},"bar":{"second_name":"barer","likes":"foos"}}
 # Out: {"first_name":"fooer","likes":["bars","foos"],"second_name":"barer"}
+```
+
+### `sign_jwt_hs256`
+
+Hash and sign an object representing JSON Web Token (JWT) claims using HS256.
+
+#### Parameters
+
+**`signing_secret`** &lt;string&gt; The HMAC secret to use for signing the token.  
+
+#### Examples
+
+
+```coffee
+root.signed = this.claims.sign_jwt_hs256("dont-tell-anyone")
+
+# In:  {"claims":{"sub":"user123"}}
+# Out: {"signed":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.hUl-nngPMY_3h9vveWJUPsCcO5PeL6k9hWLnMYeFbFQ"}
+```
+
+### `sign_jwt_hs384`
+
+Hash and sign an object representing JSON Web Token (JWT) claims using HS384.
+
+#### Parameters
+
+**`signing_secret`** &lt;string&gt; The HMAC secret to use for signing the token.  
+
+#### Examples
+
+
+```coffee
+root.signed = this.claims.sign_jwt_hs384("dont-tell-anyone")
+
+# In:  {"claims":{"sub":"user123"}}
+# Out: {"signed":"eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.zGYLr83aToon1efUNq-hw7XgT20lPvZb8sYei8x6S6mpHwb433SJdXJXx0Oio8AZ"}
+```
+
+### `sign_jwt_hs512`
+
+Hash and sign an object representing JSON Web Token (JWT) claims using HS512.
+
+#### Parameters
+
+**`signing_secret`** &lt;string&gt; The HMAC secret to use for signing the token.  
+
+#### Examples
+
+
+```coffee
+root.signed = this.claims.sign_jwt_hs512("dont-tell-anyone")
+
+# In:  {"claims":{"sub":"user123"}}
+# Out: {"signed":"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIn0.zBNR9o_6EDwXXKkpKLNJhG26j8Dc-mV-YahBwmEdCrmiWt5les8I9rgmNlWIowpq6Yxs4kLNAdFhqoRz3NXT3w"}
 ```
 
 ### `slice`
@@ -2162,7 +2537,8 @@ Serializes a target value into a pretty-printed JSON byte array (with 4 space in
 
 #### Parameters
 
-**`indent`** &lt;(optional) string, default `"    "`&gt; Indentation string. Each element in a JSON object or array will begin on a new, indented line followed by one or more copies of indent according to the indentation nesting.  
+**`indent`** &lt;string, default `"    "`&gt; Indentation string. Each element in a JSON object or array will begin on a new, indented line followed by one or more copies of indent according to the indentation nesting.  
+**`no_indent`** &lt;bool, default `false`&gt; Disable indentation.  
 
 #### Examples
 
@@ -2176,7 +2552,7 @@ root = this.doc.format_json()
 #      }
 ```
 
-Provide an argument string in order to customise the indentation used.
+Pass a string to the `indent` parameter in order to customise the indentation.
 
 ```coffee
 root = this.format_json("  ")
@@ -2198,6 +2574,15 @@ root.doc = this.doc.format_json().string()
 # Out: {"doc":"{\n    \"foo\": \"bar\"\n}"}
 ```
 
+Set the `no_indent` parameter to true to disable indentation. The result is equivalent to calling `bytes()`.
+
+```coffee
+root = this.doc.format_json(no_indent: true)
+
+# In:  {"doc":{"foo":"bar"}}
+# Out: {"foo":"bar"}
+```
+
 ### `format_msgpack`
 
 Formats data as a [MessagePack](https://msgpack.org/) message in bytes format.
@@ -2217,6 +2602,64 @@ root.encoded = this.format_msgpack().encode("base64")
 
 # In:  {"foo":"bar"}
 # Out: {"encoded":"gaNmb2+jYmFy"}
+```
+
+### `format_xml`
+
+
+Serializes a target value into an XML byte array.
+
+
+#### Parameters
+
+**`indent`** &lt;string, default `"    "`&gt; Indentation string. Each element in an XML object or array will begin on a new, indented line followed by one or more copies of indent according to the indentation nesting.  
+**`no_indent`** &lt;bool, default `false`&gt; Disable indentation.  
+
+#### Examples
+
+
+Serializes a target value into a pretty-printed XML byte array (with 4 space indentation by default).
+
+```coffee
+root = this.format_xml()
+
+# In:  {"foo":{"bar":{"baz":"foo bar baz"}}}
+# Out: <foo>
+#          <bar>
+#              <baz>foo bar baz</baz>
+#          </bar>
+#      </foo>
+```
+
+Pass a string to the `indent` parameter in order to customise the indentation.
+
+```coffee
+root = this.format_xml("  ")
+
+# In:  {"foo":{"bar":{"baz":"foo bar baz"}}}
+# Out: <foo>
+#        <bar>
+#          <baz>foo bar baz</baz>
+#        </bar>
+#      </foo>
+```
+
+Use the `.string()` method in order to coerce the result into a string.
+
+```coffee
+root.doc = this.format_xml("").string()
+
+# In:  {"foo":{"bar":{"baz":"foo bar baz"}}}
+# Out: {"doc":"<foo>\n<bar>\n<baz>foo bar baz</baz>\n</bar>\n</foo>"}
+```
+
+Set the `no_indent` parameter to true to disable indentation.
+
+```coffee
+root = this.format_xml(no_indent: true)
+
+# In:  {"foo":{"bar":{"baz":"foo bar baz"}}}
+# Out: <foo><bar><baz>foo bar baz</baz></bar></foo>
 ```
 
 ### `format_yaml`
@@ -2244,16 +2687,51 @@ root.doc = this.doc.format_yaml().string()
 
 ### `parse_csv`
 
-Attempts to parse a string into an array of objects by following the CSV format described in RFC 4180. The first line is assumed to be a header row, which determines the keys of values in each object.
+Attempts to parse a string into an array of objects by following the CSV format described in RFC 4180.
+
+#### Parameters
+
+**`parse_header_row`** &lt;bool, default `true`&gt; Whether to reference the first row as a header row. If set to true the output structure for messages will be an object where field keys are determined by the header row. Otherwise, the output will be an array of row arrays.  
+**`delimiter`** &lt;string, default `","`&gt; The delimiter to use for splitting values in each record. It must be a single character.  
+**`lazy_quotes`** &lt;bool, default `false`&gt; If set to `true`, a quote may appear in an unquoted field and a non-doubled quote may appear in a quoted field.  
 
 #### Examples
 
+
+Parses CSV data with a header row
 
 ```coffee
 root.orders = this.orders.parse_csv()
 
 # In:  {"orders":"foo,bar\nfoo 1,bar 1\nfoo 2,bar 2"}
 # Out: {"orders":[{"bar":"bar 1","foo":"foo 1"},{"bar":"bar 2","foo":"foo 2"}]}
+```
+
+Parses CSV data without a header row
+
+```coffee
+root.orders = this.orders.parse_csv(false)
+
+# In:  {"orders":"foo 1,bar 1\nfoo 2,bar 2"}
+# Out: {"orders":[["foo 1","bar 1"],["foo 2","bar 2"]]}
+```
+
+Parses CSV data delimited by dots
+
+```coffee
+root.orders = this.orders.parse_csv(delimiter:".")
+
+# In:  {"orders":"foo.bar\nfoo 1.bar 1\nfoo 2.bar 2"}
+# Out: {"orders":[{"bar":"bar 1","foo":"foo 1"},{"bar":"bar 2","foo":"foo 2"}]}
+```
+
+Parses CSV data containing a quote in an unquoted field
+
+```coffee
+root.orders = this.orders.parse_csv(lazy_quotes:true)
+
+# In:  {"orders":"foo,bar\nfoo 1,bar 1\nfoo\" \"2,bar\" \"2"}
+# Out: {"orders":[{"bar":"bar 1","foo":"foo 1"},{"bar":"bar\" \"2","foo":"foo\" \"2"}]}
 ```
 
 ### `parse_form_url_encoded`
@@ -2335,6 +2813,30 @@ root = content().parse_parquet()
 root = content().parse_parquet(byte_array_as_string: true)
 ```
 
+### `parse_url`
+
+Attempts to parse a URL from a string value, returning a structured result that describes the various facets of the URL. The fields returned within the structured result roughly follow https://pkg.go.dev/net/url#URL, and may be expanded in future in order to present more information.
+
+#### Examples
+
+
+```coffee
+root.foo_url = this.foo_url.parse_url()
+
+# In:  {"foo_url":"https://www.benthos.dev/docs/guides/bloblang/about"}
+# Out: {"foo_url":{"fragment":"","host":"www.benthos.dev","opaque":"","path":"/docs/guides/bloblang/about","raw_fragment":"","raw_path":"","raw_query":"","scheme":"https"}}
+```
+
+```coffee
+root.username = this.url.parse_url().user.name | "unknown"
+
+# In:  {"url":"amqp://foo:bar@127.0.0.1:5672/"}
+# Out: {"username":"foo"}
+
+# In:  {"url":"redis://localhost:6379"}
+# Out: {"username":"unknown"}
+```
+
 ### `parse_xml`
 
 
@@ -2391,6 +2893,35 @@ root.doc = this.doc.parse_yaml()
 
 ## Encoding and Encryption
 
+### `compress`
+
+Compresses a string or byte array value according to a specified algorithm.
+
+#### Parameters
+
+**`algorithm`** &lt;string&gt; One of `flate`, `gzip`, `lz4`, `snappy`, `zlib`, `zstd`.  
+**`level`** &lt;integer, default `-1`&gt; The level of compression to use. May not be applicable to all algorithms.  
+
+#### Examples
+
+
+```coffee
+let long_content = range(0, 1000).map_each(content()).join(" ")
+root.a_len = $long_content.length()
+root.b_len = $long_content.compress("gzip").length()
+
+
+# In:  hello world this is some content
+# Out: {"a_len":32999,"b_len":161}
+```
+
+```coffee
+root.compressed = content().compress("lz4").encode("base64")
+
+# In:  hello world I love space
+# Out: {"compressed":"BCJNGGRwuRgAAIBoZWxsbyB3b3JsZCBJIGxvdmUgc3BhY2UAAAAAGoETLg=="}
+```
+
 ### `decode`
 
 Decodes an encoded string target according to a chosen scheme and returns the result as a byte array. When mapping the result to a JSON field the value should be cast to a string using the method [`string`][methods.string], or encoded using the method [`encode`][methods.encode], otherwise it will be base64 encoded by default.
@@ -2416,6 +2947,33 @@ root = this.encoded.decode("ascii85")
 
 # In:  {"encoded":"FD,B0+DGm>FDl80Ci\"A>F`)8BEckl6F`M&(+Cno&@/"}
 # Out: this is totally unstructured data
+```
+
+### `decompress`
+
+Decompresses a string or byte array value according to a specified algorithm. The result of decompression 
+
+#### Parameters
+
+**`algorithm`** &lt;string&gt; One of `gzip`, `zlib`, `bzip2`, `flate`, `snappy`, `lz4`, `zstd`.  
+
+#### Examples
+
+
+```coffee
+root = this.compressed.decode("base64").decompress("lz4")
+
+# In:  {"compressed":"BCJNGGRwuRgAAIBoZWxsbyB3b3JsZCBJIGxvdmUgc3BhY2UAAAAAGoETLg=="}
+# Out: hello world I love space
+```
+
+Use the `.string()` method in order to coerce the result into a string, this makes it possible to place the data within a JSON document without automatic base64 encoding.
+
+```coffee
+root.result = this.compressed.decode("base64").decompress("lz4").string()
+
+# In:  {"compressed":"BCJNGGRwuRgAAIBoZWxsbyB3b3JsZCBJIGxvdmUgc3BhY2UAAAAAGoETLg=="}
+# Out: {"result":"hello world I love space"}
 ```
 
 ### `decrypt_aes`
@@ -2637,6 +3195,14 @@ Attempts to format a timestamp value as a string according to a specified strfti
 ### `format_timestamp_unix`
 
 Attempts to format a timestamp value as a unix timestamp. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
+
+### `format_timestamp_unix_micro`
+
+Attempts to format a timestamp value as a unix timestamp with microsecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
+
+### `format_timestamp_unix_milli`
+
+Attempts to format a timestamp value as a unix timestamp with millisecond precision. Timestamp values can either be a numerical unix time in seconds (with up to nanosecond precision via decimals), or a string in RFC 3339 format. The [`ts_parse`](#ts_parse) method can be used in order to parse different timestamp formats.
 
 ### `format_timestamp_unix_nano`
 

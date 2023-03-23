@@ -9,6 +9,7 @@ package bundle
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -62,32 +63,57 @@ type NewManagement interface {
 	ProbeCache(name string) bool
 	AccessCache(ctx context.Context, name string, fn func(cache.V1)) error
 	StoreCache(ctx context.Context, name string, conf cache.Config) error
+	RemoveCache(ctx context.Context, name string) error
 
 	ProbeInput(name string) bool
 	AccessInput(ctx context.Context, name string, fn func(input.Streamed)) error
 	StoreInput(ctx context.Context, name string, conf input.Config) error
+	RemoveInput(ctx context.Context, name string) error
 
 	ProbeProcessor(name string) bool
 	AccessProcessor(ctx context.Context, name string, fn func(processor.V1)) error
 	StoreProcessor(ctx context.Context, name string, conf processor.Config) error
+	RemoveProcessor(ctx context.Context, name string) error
 
 	ProbeOutput(name string) bool
 	AccessOutput(ctx context.Context, name string, fn func(output.Sync)) error
 	StoreOutput(ctx context.Context, name string, conf output.Config) error
+	RemoveOutput(ctx context.Context, name string) error
 
 	ProbeRateLimit(name string) bool
 	AccessRateLimit(ctx context.Context, name string, fn func(ratelimit.V1)) error
 	StoreRateLimit(ctx context.Context, name string, conf ratelimit.Config) error
+	RemoveRateLimit(ctx context.Context, name string) error
 
 	GetPipe(name string) (<-chan message.Transaction, error)
 	SetPipe(name string, t <-chan message.Transaction)
 	UnsetPipe(name string, t <-chan message.Transaction)
 }
 
+type componentErr struct {
+	typeStr    string
+	annotation string
+	err        error
+}
+
+func (c *componentErr) Error() string {
+	return fmt.Sprintf("failed to init %v %v: %v", c.typeStr, c.annotation, c.err)
+}
+
+func (c *componentErr) Unwrap() error {
+	return c.err
+}
+
 func wrapComponentErr(mgr NewManagement, typeStr string, err error) error {
 	if err == nil {
 		return nil
 	}
+
+	var existing *componentErr
+	if errors.As(err, &existing) {
+		return err
+	}
+
 	annotation := "<no label>"
 	if mgr.Label() != "" {
 		annotation = "'" + mgr.Label() + "'"
@@ -96,5 +122,9 @@ func wrapComponentErr(mgr NewManagement, typeStr string, err error) error {
 		annotation += " path root."
 		annotation += query.SliceToDotPath(mgr.Path()...)
 	}
-	return fmt.Errorf("failed to init %v %v: %w", typeStr, annotation, err)
+	return &componentErr{
+		typeStr:    typeStr,
+		annotation: annotation,
+		err:        err,
+	}
 }

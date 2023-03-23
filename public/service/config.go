@@ -211,6 +211,14 @@ func (c *ConfigField) Optional() *ConfigField {
 	return c
 }
 
+// Secret marks this field as being a secret, which means it represents
+// information that is generally considered sensitive such as passwords or
+// access tokens.
+func (c *ConfigField) Secret() *ConfigField {
+	c.field = c.field.Secret()
+	return c
+}
+
 // Example adds an example value to the field which will be shown when printing
 // documentation for the component config spec.
 func (c *ConfigField) Example(e any) *ConfigField {
@@ -355,6 +363,14 @@ func (c *ConfigSpec) Description(description string) *ConfigSpec {
 	return c
 }
 
+// Footnotes adds a description to the plugin configuration spec that appears
+// towards the bottom of the documentation page, this is usually best for long
+// winded lists of docs.
+func (c *ConfigSpec) Footnotes(description string) *ConfigSpec {
+	c.component.Footnotes = description
+	return c
+}
+
 // Field sets the specification of a field within the config spec, used for
 // linting and generating documentation for the component.
 //
@@ -381,6 +397,23 @@ func (c *ConfigSpec) Field(f *ConfigField) *ConfigSpec {
 
 	c.component.Config.Children = append(c.component.Config.Children, f.field)
 	return c
+}
+
+// Fields sets the specification of multiple field within the config spec, used
+// for linting and generating documentation for the component.
+//
+// If the provided any of the fields have an empty name then they are registered
+// as the value at the root of the config spec.
+//
+// When creating a spec with a struct constructor the fields from that struct
+// will already be inferred. However, setting fields explicitly is sometimes
+// useful for enriching their documentation with more information.
+func (c *ConfigSpec) Fields(fs ...*ConfigField) *ConfigSpec {
+	spec := c
+	for _, f := range fs {
+		spec = c.Field(f)
+	}
+	return spec
 }
 
 // Example adds an example to the plugin configuration spec that demonstrates

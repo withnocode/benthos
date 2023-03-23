@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/benthosdev/benthos/v4/internal/bundle"
 	"github.com/benthosdev/benthos/v4/internal/component"
@@ -51,7 +51,7 @@ func newRedisPubSubInput(conf input.Config, mgr bundle.NewManagement) (input.Str
 	if err != nil {
 		return nil, err
 	}
-	return input.NewAsyncReader("redis_pubsub", true, input.NewAsyncPreserver(r), mgr)
+	return input.NewAsyncReader("redis_pubsub", input.NewAsyncPreserver(r), mgr)
 }
 
 type redisPubSubReader struct {

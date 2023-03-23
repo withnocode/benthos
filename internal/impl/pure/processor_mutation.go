@@ -3,6 +3,11 @@ package pure
 import (
 	"context"
 
+	"github.com/benthosdev/benthos/v4/internal/bloblang/mapping"
+	"github.com/benthosdev/benthos/v4/internal/component/interop"
+	"github.com/benthosdev/benthos/v4/internal/component/processor"
+	"github.com/benthosdev/benthos/v4/internal/message"
+	"github.com/benthosdev/benthos/v4/internal/tracing"
 	"github.com/benthosdev/benthos/v4/public/bloblang"
 	"github.com/benthosdev/benthos/v4/public/service"
 )
@@ -118,7 +123,9 @@ pipeline:
 			if err != nil {
 				return nil, err
 			}
-			return newMutation(mapping, mgr.Logger()), nil
+
+			v1Proc := processor.NewV2BatchedToV1Processor("mutation", newMutation(mapping, mgr.Logger()), interop.UnwrapManagement(mgr))
+			return interop.NewUnwrapInternalBatchProcessor(v1Proc), nil
 		})
 	if err != nil {
 		panic(err)
@@ -126,24 +133,28 @@ pipeline:
 }
 
 type mutationProc struct {
-	exec *bloblang.Executor
+	exec *mapping.Executor
 	log  *service.Logger
 }
 
-func newMutation(exec *bloblang.Executor, log *service.Logger) service.BatchProcessor {
+func newMutation(exec *bloblang.Executor, log *service.Logger) *mutationProc {
+	uw := exec.XUnwrapper().(interface {
+		Unwrap() *mapping.Executor
+	}).Unwrap()
+
 	return &mutationProc{
-		exec: exec,
+		exec: uw,
 		log:  log,
 	}
 }
 
-func (m *mutationProc) ProcessBatch(ctx context.Context, batch service.MessageBatch) ([]service.MessageBatch, error) {
-	newBatch := make(service.MessageBatch, 0, len(batch))
-	for i, msg := range batch {
-		newPart, err := batch.BloblangMutate(i, m.exec)
+func (m *mutationProc) ProcessBatch(ctx context.Context, _ []*tracing.Span, b message.Batch) ([]message.Batch, error) {
+	newBatch := make(message.Batch, 0, len(b))
+	for i, msg := range b {
+		newPart, err := m.exec.MapOnto(msg, i, b)
 		if err != nil {
 			m.log.Error(err.Error())
-			msg.SetError(err)
+			msg.ErrorSet(err)
 			newBatch = append(newBatch, msg)
 			continue
 		}
@@ -154,7 +165,7 @@ func (m *mutationProc) ProcessBatch(ctx context.Context, batch service.MessageBa
 	if len(newBatch) == 0 {
 		return nil, nil
 	}
-	return []service.MessageBatch{newBatch}, nil
+	return []message.Batch{newBatch}, nil
 }
 
 func (m *mutationProc) Close(context.Context) error {

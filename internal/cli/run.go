@@ -25,20 +25,36 @@ import (
 
 // Build stamps.
 var (
-	Version   string
-	DateBuilt string
+	Version   = "unknown"
+	DateBuilt = "unknown"
 )
 
 func init() {
-	if Version == "" {
-		if info, ok := debug.ReadBuildInfo(); ok {
-			for _, mod := range info.Deps {
-				if mod.Path == "github.com/benthosdev/benthos/v4" {
+	if Version != "unknown" {
+		return
+	}
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, mod := range info.Deps {
+			if mod.Path == "github.com/benthosdev/benthos/v4" {
+				if mod.Version != "(devel)" {
 					Version = mod.Version
+				}
+				if mod.Replace != nil {
+					v := mod.Replace.Version
+					if v != "" && v != "(devel)" {
+						Version = v
+					}
 				}
 			}
 		}
-		DateBuilt = "unknown"
+		for _, s := range info.Settings {
+			if s.Key == "vcs.revision" && Version == "unknown" {
+				Version = s.Value
+			}
+			if s.Key == "vcs.time" && DateBuilt == "unknown" {
+				DateBuilt = s.Value
+			}
+		}
 	}
 }
 
@@ -84,18 +100,7 @@ func OptUseContext(ctx context.Context) func() {
 //------------------------------------------------------------------------------
 
 func cmdVersion() {
-	version, dateBuilt := Version, DateBuilt
-	if version == "" {
-		info, ok := debug.ReadBuildInfo()
-		if ok {
-			for _, mod := range info.Deps {
-				if mod.Path == "github.com/benthosdev/benthos/v4" {
-					version = mod.Version
-				}
-			}
-		}
-	}
-	fmt.Printf("Version: %v\nDate: %v\n", version, dateBuilt)
+	fmt.Printf("Version: %v\nDate: %v\n", Version, DateBuilt)
 	os.Exit(0)
 }
 
@@ -121,10 +126,10 @@ func Run() {
 			Value:   false,
 			Usage:   "display version info, then exit",
 		},
-		&cli.StringFlag{
+		&cli.StringSliceFlag{
 			Name:    "env-file",
 			Aliases: []string{"e"},
-			Value:   "",
+			Value:   cli.NewStringSlice(),
 			Usage:   "import environment variables from a dotenv file",
 		},
 		&cli.StringFlag{
@@ -181,7 +186,7 @@ Either run Benthos as a stream processor or choose a command:
   benthos -r "./production/*.yaml" -c ./config.yaml`[1:],
 		Flags: flags,
 		Before: func(c *cli.Context) error {
-			if dotEnvFile := c.String("env-file"); dotEnvFile != "" {
+			for _, dotEnvFile := range c.StringSlice("env-file") {
 				dotEnvBytes, err := ifs.ReadFile(ifs.OS(), dotEnvFile)
 				if err != nil {
 					fmt.Printf("Failed to read dotenv file: %v\n", err)
@@ -267,6 +272,7 @@ variables have been resolved:
 					if err == nil {
 						sanitConf := docs.NewSanitiseConfig()
 						sanitConf.RemoveTypeField = true
+						sanitConf.ScrubSecrets = true
 						err = config.Spec().SanitiseYAML(&node, sanitConf)
 					}
 					if err == nil {

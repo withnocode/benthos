@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/benthosdev/benthos/v4/internal/bundle"
 	"github.com/benthosdev/benthos/v4/internal/component"
@@ -57,7 +57,7 @@ func newRedisStreamsInput(conf input.Config, mgr bundle.NewManagement) (input.St
 		return nil, err
 	}
 	c = input.NewAsyncPreserver(c)
-	return input.NewAsyncReader("redis_streams", true, c, mgr)
+	return input.NewAsyncReader("redis_streams", c, mgr)
 }
 
 type pendingRedisStreamMsg struct {
@@ -186,7 +186,7 @@ func (r *redisStreamsReader) sendAcks(ctx context.Context) {
 		if len(ids) == 0 {
 			continue
 		}
-		if err := r.client.XAck(ctx, str, r.conf.ConsumerGroup, ids...).Err(); err != nil {
+		if err := client.XAck(ctx, str, r.conf.ConsumerGroup, ids...).Err(); err != nil {
 			r.log.Errorf("Failed to ack stream %v: %v\n", str, err)
 		}
 	}
