@@ -3,6 +3,7 @@ package log
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gofrs/uuid"
 	"io"
 	"strings"
 
@@ -18,6 +19,7 @@ type Config struct {
 	TimestampName string            `json:"timestamp_name" yaml:"timestamp_name"`
 	StaticFields  map[string]string `json:"static_fields" yaml:"static_fields"`
 	File          File              `json:"file" yaml:"file"`
+	Correlation   Correlation       `json:"correlation" yaml:"correlation"`
 }
 
 // File contains configuration for file based logging.
@@ -25,6 +27,12 @@ type File struct {
 	Path         string `json:"path" yaml:"path"`
 	Rotate       bool   `json:"rotate" yaml:"rotate"`
 	RotateMaxAge int    `json:"rotate_max_age_days" yaml:"rotate_max_age_days"`
+}
+
+// Correlation contains configuration for a correlation uuid per message.
+type Correlation struct {
+	AddCorrelationId bool   `json:"add_correlation_id" yaml:"add_correlation_id"`
+	FieldName        string `json:"field_name" yaml:"field_name"`
 }
 
 // NewConfig returns a config struct with the default values for each field.
@@ -37,6 +45,10 @@ func NewConfig() Config {
 		MessageName:   "msg",
 		StaticFields: map[string]string{
 			"@service": "benthos",
+		},
+		Correlation: Correlation{
+			AddCorrelationId: false,
+			FieldName:        "@X-Correlation-Id",
 		},
 	}
 }
@@ -142,6 +154,13 @@ func NewV2(stream io.Writer, config Config) (Modular, error) {
 	for k, v := range config.StaticFields {
 		sFields[k] = v
 	}
+	if config.Correlation.AddCorrelationId {
+		v4, err := uuid.NewV4()
+		if err != nil {
+			return nil, err
+		}
+		sFields[config.Correlation.FieldName] = v4
+	}
 	logEntry := logger.WithFields(sFields)
 
 	return &Logger{entry: logEntry}, nil
@@ -163,7 +182,6 @@ func (l *Logger) WithFields(inboundFields map[string]string) Modular {
 	for k, v := range inboundFields {
 		newFields[k] = v
 	}
-
 	newLogger := *l
 	newLogger.entry = l.entry.WithFields(newFields)
 	return &newLogger

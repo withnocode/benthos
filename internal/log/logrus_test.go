@@ -99,6 +99,53 @@ func TestLoggerWithNonStringKeys(t *testing.T) {
 	assert.Equal(t, expected, buf.String())
 }
 
+func TestLoggerWithCorrelation(t *testing.T) {
+	loggerConfig := NewConfig()
+	loggerConfig.AddTimeStamp = false
+	loggerConfig.Format = "logfmt"
+	loggerConfig.LogLevel = "WARN"
+	loggerConfig.StaticFields = map[string]string{
+		"@service": "benthos_service",
+		"@system":  "foo",
+	}
+	loggerConfig.Correlation.AddCorrelationId = true
+
+	var buf bytes.Buffer
+
+	logger, err := NewV2(&buf, loggerConfig)
+	require.NoError(t, err)
+
+	logger.Warnln("Warning message foo fields")
+
+	expected := "@X-Correlation-Id"
+
+	assert.Contains(t, buf.String(), expected)
+}
+
+func TestLoggerWithCorrelationCustomFieldName(t *testing.T) {
+	loggerConfig := NewConfig()
+	loggerConfig.AddTimeStamp = false
+	loggerConfig.Format = "logfmt"
+	loggerConfig.LogLevel = "WARN"
+	loggerConfig.StaticFields = map[string]string{
+		"@service": "benthos_service",
+		"@system":  "foo",
+	}
+	loggerConfig.Correlation.AddCorrelationId = true
+	loggerConfig.Correlation.FieldName = "@X-CUSTOM-ID"
+
+	var buf bytes.Buffer
+
+	logger, err := NewV2(&buf, loggerConfig)
+	require.NoError(t, err)
+
+	logger.Warnln("Warning message foo fields")
+
+	expected := loggerConfig.Correlation.FieldName
+
+	assert.Contains(t, buf.String(), expected)
+}
+
 type logCounter struct {
 	count int
 }
