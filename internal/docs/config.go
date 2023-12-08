@@ -5,8 +5,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/Jeffail/gabs/v2"
 )
 
 const labelExpression = `^[a-z0-9_]+$`
@@ -31,16 +29,7 @@ func ValidateLabel(label string) error {
 
 var labelField = FieldString(
 	"label", "An optional label to use as an identifier for observability data such as metrics and logging.",
-).OmitWhen(func(field, parent any) (string, bool) {
-	gObj := gabs.Wrap(parent)
-	if typeStr, exists := gObj.S("type").Data().(string); exists && typeStr == "resource" {
-		return "label field should be omitted when pointing to a resource", true
-	}
-	if resourceStr, exists := gObj.S("resource").Data().(string); exists && resourceStr != "" {
-		return "label field should be omitted when pointing to a resource", true
-	}
-	return "", false
-}).AtVersion("3.44.0").LinterFunc(func(ctx LintContext, line, col int, v any) []Lint {
+).AtVersion("3.44.0").LinterFunc(func(ctx LintContext, line, col int, v any) []Lint {
 	l, _ := v.(string)
 	if l == "" {
 		return nil
